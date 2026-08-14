@@ -1,0 +1,13 @@
+opencv-python
+Pillow
+exifread
+numpy
+scikit-learn
+geopandas
+shapely
+folium
+streamlit
+SQLAlchemy
+torch --index-url https://download.pytorch.org/whl/cpu
+torchvision --index-url https://download.pytorch.org/whl/cpu
+opencv-python==4.10.0.84
