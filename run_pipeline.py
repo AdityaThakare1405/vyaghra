@@ -1,9 +1,11 @@
 """
 Single entry point for the Vyaghra pipeline.
 Usage: python run_pipeline.py --input data/samples/tigers_multi
-
-
 """
+
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ["OMP_NUM_THREADS"] = "1"
 
 import argparse
 import time
@@ -11,6 +13,7 @@ import json
 import random
 import shutil
 from pathlib import Path
+from datetime import datetime, timedelta
 
 from src.db import get_connection
 from src.ingestion.scanner import find_images, extract_metadata
@@ -21,11 +24,6 @@ from src.config import OUTPUTS_DIR, QUARANTINE_DIR
 
 
 def _assign_random_station(conn):
-    """
-    Our real dataset images don't have GPS data (as expected — see docs).
-    We simulate the field-realistic link between a sighting and a station
-    by randomly assigning each processed image to one of our known stations.
-    """
     stations = conn.execute("SELECT station_id, lat, lon FROM stations").fetchall()
     return random.choice(stations)
 
@@ -51,16 +49,23 @@ def main(input_folder: str):
         result = classify_image(str(img_path))
         station_id, station_lat, station_lon = _assign_random_station(conn)
 
-        # If real GPS existed we'd use it; otherwise fall back to the
-        # assigned station's coordinates.
         gps_lat = meta["gps_lat"] if meta["gps_lat"] else station_lat
         gps_lon = meta["gps_lon"] if meta["gps_lon"] else station_lon
+
+        # Our ATRW test images have no real EXIF timestamps (academic re-ID
+        # dataset, not real field data). Simulate a realistic capture time
+        # spread across recent days so the alert engine has something
+        # meaningful to compare across runs.
+        capture_timestamp = meta["capture_timestamp"]
+        if capture_timestamp is None:
+            fake_dt = datetime.now() - timedelta(days=random.randint(0, 30), hours=random.randint(0, 23))
+            capture_timestamp = fake_dt.isoformat()
 
         cursor = conn.execute(
             """INSERT INTO images (original_path, station_id, capture_timestamp, timestamp_confidence,
                                     gps_lat, gps_lon, classification, classification_confidence, run_id)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (meta["original_path"], station_id, meta["capture_timestamp"], meta["timestamp_confidence"],
+            (meta["original_path"], station_id, capture_timestamp, meta["timestamp_confidence"],
              gps_lat, gps_lon, result["label"], result["confidence"], run_id),
         )
         conn.commit()
@@ -69,7 +74,7 @@ def main(input_folder: str):
         if result["label"] == "blank":
             file_size = img_path.stat().st_size
             dest = QUARANTINE_DIR / img_path.name
-            shutil.copy(str(img_path), str(dest))  # copy, not move — keep originals safe for repeat testing
+            shutil.copy(str(img_path), str(dest))
             conn.execute("UPDATE images SET quarantined = 1 WHERE image_id = ?", (image_id,))
             conn.commit()
             quarantined_count += 1
