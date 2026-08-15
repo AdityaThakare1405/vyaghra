@@ -1,0 +1,19 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"name": "Pench Tiger Reserve (approximate outline)", "zone": "core+buffer"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.1292, 21.6167],
+          [79.3750, 21.6167],
+          [79.3750, 21.8417],
+          [79.1292, 21.8417],
+          [79.1292, 21.6167]
+        ]]
+      }
+    }
+  ]
+}

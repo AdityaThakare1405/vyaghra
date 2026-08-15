@@ -88,6 +88,18 @@ with tab2:
         st.info("No occupancy data yet — run the pipeline and regenerate occupancy first.")
     else:
         m = folium.Map(location=[snapshots[0][1], snapshots[0][2]], zoom_start=11)
+        
+        # Overlay an approximate Pench Tiger Reserve boundary, built from
+        # publicly documented coordinates (official WDPA boundary geometry
+        # is licensed and not redistributable — see docs/README.md).
+        import json as _json
+        with open("data/samples/pench_boundary_approx.geojson") as f:
+            boundary = _json.load(f)
+        folium.GeoJson(
+            boundary,
+            name="Reserve Boundary (approximate)",
+            style_function=lambda x: {"color": "black", "weight": 2, "dashArray": "5,5", "fillOpacity": 0},
+        ).add_to(m)
         colors = ["red", "blue", "green", "purple", "orange", "darkred", "cadetblue"]
 
         for idx, (tiger_id, lat, lon, area, geojson_str) in enumerate(snapshots):
