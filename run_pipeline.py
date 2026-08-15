@@ -1,6 +1,8 @@
 """
 Single entry point for the Vyaghra pipeline.
 Usage: python run_pipeline.py --input data/samples/tigers_multi
+
+
 """
 
 import argparse
@@ -76,7 +78,7 @@ def main(input_folder: str):
 
         elif result["label"] == "subject":
             crop_path, usable = detect_and_crop(str(img_path))
-            crop_result = classify_image(crop_path) if crop_path else result
+            crop_result = classify_image(crop_path, skip_person_check=True) if crop_path else result
 
             if crop_result["embedding"] is None:
                 print(f"  [SUBJECT -> no embedding, skipped] {img_path.name}")
