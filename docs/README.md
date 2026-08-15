@@ -71,6 +71,15 @@ Rule-based diffing of each run's occupancy snapshot against the tiger's previous
 
 ## Known Limitations
 
+
+- **The occupancy map's background tile imagery requires an internet-connected tile server** 
+  (standard for web-mapping libraries like Folium/Leaflet). In a
+  fully offline field deployment, this would be replaced with locally cached
+  map tile packages for the reserve boundary — a standard practice for offline
+  GIS tools. The underlying occupancy data (polygons, centroids, area
+  calculations) is generated and stored correctly with no internet dependency;
+  only the decorative basemap imagery is affected.
+
 - **Identification embeddings are a general-purpose visual similarity proxy**, not a model trained specifically for stripe-pattern matching. Production systems for this exact problem (e.g., Wildbook/HotSpotter-style tools) use re-ID-specific matching. We chose this approach given the CPU-only constraint and 24-hour build window; it correctly links most repeat sightings of the same individual, but occasionally misses matches across very different poses/angles or lighting conditions.
 - **Flank isolation is a contour-based heuristic**, not a trained detector, since a trained detector (e.g., MegaDetector) is GPU-class and out of scope for the field-hardware constraint.
 - **Person detection is applied only to original full frames**, not to cropped animal regions — we found that running the HOG detector repeatedly on small, irregularly-sized crops caused unstable low-level crashes at scale; since privacy screening is only meaningful on the full original frame anyway, this is both a stability fix and the architecturally correct design.
