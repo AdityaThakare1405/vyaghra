@@ -39,22 +39,22 @@ _hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
 def _detect_person(image_bgr) -> bool:
     h, w = image_bgr.shape[:2]
 
-    # HOG's detector has a fixed internal window size and can throw a
-    # low-level C++ exception on images that are too small or unusually
-    # shaped (which happens with tight crops). Skip the check safely in
-    # that case rather than crashing the whole pipeline.
     if h < 64 or w < 64:
         return False
 
     try:
-        resized = cv2.resize(image_bgr, (min(640, w), min(480, h)))
+        # Always resize to an EXACT fixed size, regardless of the source
+        # image's dimensions. Using a size that varies per-image was likely
+        # triggering an unstable low-level state in OpenCV's HOG detector
+        # under sustained repeated calls (observed as a silent heap
+        # corruption crash — Windows exit code 0xC0000374 — after ~70
+        # consecutive calls in production-scale testing).
+        resized = cv2.resize(image_bgr, (640, 480))
         boxes, weights = _hog.detectMultiScale(resized, winStride=(8, 8))
         if len(boxes) == 0:
             return False
         return max(weights) > 0.7 if len(weights) > 0 else False
     except cv2.error:
-        # Defensive fallback: if HOG still fails for any other reason,
-        # don't crash the batch run over a single problematic frame.
         return False
 
 
