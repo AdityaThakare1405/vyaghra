@@ -7,6 +7,7 @@ on every run, per the brief's explicit requirement.
 import json
 from shapely.geometry import MultiPoint, mapping
 import geopandas as gpd
+from shapely.geometry import MultiPoint, Polygon, mapping
 
 from src.db import get_connection
 
@@ -15,6 +16,25 @@ from src.db import get_connection
 UTM_CRS = "EPSG:32644"
 WGS84_CRS = "EPSG:4326"
 
+
+def _chaikin_smooth(points, iterations=4):
+    """
+    Chaikin's corner-cutting algorithm: repeatedly rounds a polygon's
+    corners to produce a smooth, organic curve instead of straight edges
+    — used so home range boundaries look like natural animal territories
+    rather than a geometric convex hull.
+    """
+    for _ in range(iterations):
+        new_points = []
+        n = len(points)
+        for i in range(n):
+            p0 = points[i]
+            p1 = points[(i + 1) % n]
+            q = (0.75 * p0[0] + 0.25 * p1[0], 0.75 * p0[1] + 0.25 * p1[1])
+            r = (0.25 * p0[0] + 0.75 * p1[0], 0.25 * p0[1] + 0.75 * p1[1])
+            new_points.extend([q, r])
+        points = new_points
+    return points
 
 def regenerate_all_occupancy(run_id: int):
     conn = get_connection()
@@ -40,7 +60,15 @@ def regenerate_all_occupancy(run_id: int):
         ).to_crs(UTM_CRS)
 
         multipoint = MultiPoint(list(gdf.geometry))
-        hull = multipoint.convex_hull
+        raw_hull = multipoint.convex_hull
+
+        # Smooth the hull's straight edges into a natural, organic curve.
+        if raw_hull.geom_type == "Polygon":
+            hull_coords = list(raw_hull.exterior.coords)[:-1]  # drop repeated closing point
+            smoothed_coords = _chaikin_smooth(hull_coords, iterations=4)
+            hull = Polygon(smoothed_coords)
+        else:
+            hull = raw_hull  # fallback for degenerate cases (e.g. a line, not enough spread)
 
         area_sq_km = hull.area / 1_000_000
         centroid_utm = hull.centroid

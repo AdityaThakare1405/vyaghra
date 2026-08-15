@@ -3,16 +3,35 @@
   "features": [
     {
       "type": "Feature",
-      "properties": {"name": "Pench Tiger Reserve (approximate outline)", "zone": "core+buffer"},
+      "properties": {
+        "name": "Pench Tiger Reserve boundary (user-drawn)"
+      },
       "geometry": {
         "type": "Polygon",
-        "coordinates": [[
-          [79.1292, 21.6167],
-          [79.3750, 21.6167],
-          [79.3750, 21.8417],
-          [79.1292, 21.8417],
-          [79.1292, 21.6167]
-        ]]
+        "coordinates": [
+          [
+            [
+              79.190178,
+              21.63518
+            ],
+            [
+              79.190178,
+              21.786307
+            ],
+            [
+              79.373204,
+              21.786307
+            ],
+            [
+              79.373204,
+              21.63518
+            ],
+            [
+              79.190178,
+              21.63518
+            ]
+          ]
+        ]
       }
     }
   ]

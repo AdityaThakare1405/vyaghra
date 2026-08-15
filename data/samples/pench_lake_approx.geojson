@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"name": "Totladoh Reservoir (approximate, centered on real dam coordinates 21.658N 79.294E)"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.270, 21.640],
+          [79.310, 21.645],
+          [79.315, 21.680],
+          [79.305, 21.720],
+          [79.290, 21.735],
+          [79.270, 21.715],
+          [79.265, 21.675],
+          [79.270, 21.640]
+        ]]
+      }
+    }
+  ]
+}
