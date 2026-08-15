@@ -3,6 +3,18 @@ Dashboard: the forest-staff-facing interface. Plain language throughout,
 no exposed ML jargon, per the brief's usability requirement.
 """
 
+import sys
+from pathlib import Path
+
+# Streamlit runs this file directly rather than as a package module, so we
+# need to explicitly add the project root to the path for "src." imports
+# to resolve correctly.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ["OMP_NUM_THREADS"] = "1"
+
 import streamlit as st
 import folium
 from streamlit_folium import st_folium
@@ -13,14 +25,26 @@ from src.identification.matcher import record_human_decision
 
 st.set_page_config(page_title="Vyaghra — Pench Tiger Reserve", layout="wide")
 st.title("🐅 Vyaghra — Camera Trap Intelligence Dashboard")
+st.caption("Automated Camera Trap Triage and Individual Tiger Movement Intelligence — Pench Tiger Reserve")
 
 conn = get_connection()
 
-tab1, tab2, tab3 = st.tabs(["Review Queue", "Occupancy Map", "Alerts"])
+# ── Top summary bar ──────────────────────────────────────
+latest_run = conn.execute("SELECT * FROM runs ORDER BY run_id DESC LIMIT 1").fetchone()
+if latest_run:
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Images Processed (last run)", latest_run[2] or 0)
+    col2.metric("Quarantined", latest_run[3] or 0)
+    col3.metric("Throughput", f"{latest_run[6] or 0:.0f} img/min")
+    col4.metric("Time Taken", f"{latest_run[5] or 0:.1f}s")
+
+tab1, tab2, tab3 = st.tabs(["🔍 Review Queue", "🗺️ Occupancy Map", "⚠️ Alerts"])
 
 # ── TAB 1: Review Queue ──────────────────────────────────
 with tab1:
     st.header("Sightings needing your review")
+    st.write("These images had an ambiguous match — please confirm which tiger this is, or mark as new.")
+
     pending = conn.execute(
         """SELECT sg.sighting_id, i.original_path, sg.match_confidence
            FROM sightings sg JOIN images i ON sg.image_id = i.image_id
@@ -30,13 +54,16 @@ with tab1:
     if not pending:
         st.success("No sightings currently need review.")
     else:
+        known_tigers = [row[0] for row in conn.execute("SELECT tiger_id FROM tigers").fetchall()]
         for sighting_id, image_path, confidence in pending:
             col1, col2 = st.columns([1, 2])
             with col1:
-                st.image(image_path, width=250)
+                try:
+                    st.image(image_path, width=250)
+                except Exception:
+                    st.write(f"(image not found: {image_path})")
             with col2:
                 st.write(f"Confidence this matches a known tiger: **{confidence:.0%}**" if confidence else "New sighting")
-                known_tigers = [row[0] for row in conn.execute("SELECT tiger_id FROM tigers").fetchall()]
                 choice = st.selectbox(
                     "Which tiger is this?", ["-- New Individual --"] + known_tigers, key=f"select_{sighting_id}"
                 )
@@ -44,18 +71,21 @@ with tab1:
                     tiger_id = choice if choice != "-- New Individual --" else None
                     record_human_decision(sighting_id, tiger_id, reviewer_name="Field Staff")
                     st.rerun()
+            st.divider()
 
 # ── TAB 2: Occupancy Map ─────────────────────────────────
 with tab2:
     st.header("Tiger-wise Territory Map")
+
+    latest_snapshot_run = conn.execute("SELECT MAX(run_id) FROM occupancy_snapshots").fetchone()[0]
     snapshots = conn.execute(
         """SELECT tiger_id, centroid_lat, centroid_lon, area_sq_km, home_range_geojson
-           FROM occupancy_snapshots
-           WHERE run_id = (SELECT MAX(run_id) FROM occupancy_snapshots)"""
-    ).fetchall()
+           FROM occupancy_snapshots WHERE run_id = ?""",
+        (latest_snapshot_run,),
+    ).fetchall() if latest_snapshot_run else []
 
     if not snapshots:
-        st.info("No occupancy data yet — run the pipeline first.")
+        st.info("No occupancy data yet — run the pipeline and regenerate occupancy first.")
     else:
         m = folium.Map(location=[snapshots[0][1], snapshots[0][2]], zoom_start=11)
         colors = ["red", "blue", "green", "purple", "orange", "darkred", "cadetblue"]
@@ -66,24 +96,29 @@ with tab2:
                 json.loads(geojson_str),
                 style_function=lambda x, c=color: {"color": c, "fillOpacity": 0.3},
             ).add_to(m)
-            folium.Marker([lat, lon], popup=f"{tiger_id}: {area:.1f} sq km").add_to(m)
-            st.write(f"**{tiger_id}** — home range: {area:.1f} sq km, centroid: ({lat:.4f}, {lon:.4f})")
+            folium.Marker(
+                [lat, lon],
+                popup=f"{tiger_id}: {area:.1f} sq km",
+                icon=folium.Icon(color=color if color in ["red", "blue", "green", "orange"] else "gray"),
+            ).add_to(m)
+            st.write(f"🐅 **{tiger_id}** — home range: **{area:.1f} sq km**, centroid: ({lat:.4f}, {lon:.4f})")
 
-        st_folium(m, width=900, height=500)
+        st_folium(m, width=1100, height=500)
 
 # ── TAB 3: Alerts ─────────────────────────────────────────
 with tab3:
     st.header("Deviation Alerts")
+
     alerts = conn.execute(
         """SELECT tiger_id, alert_type, what_changed, supporting_evidence, confidence_level, artefact_flag
            FROM alerts ORDER BY alert_id DESC LIMIT 20"""
     ).fetchall()
 
     if not alerts:
-        st.success("No alerts on the latest run.")
+        st.success("No alerts raised.")
     else:
         for tiger_id, alert_type, what_changed, evidence, confidence, artefact_flag in alerts:
-            icon = "⚠️" if not artefact_flag else "ℹ️"
+            icon = "ℹ️" if artefact_flag else "⚠️"
             label = "Possible survey artefact (not a real deviation)" if artefact_flag else alert_type.replace("_", " ").title()
             with st.expander(f"{icon} {tiger_id} — {label}"):
                 st.write(f"**What changed:** {what_changed}")
