@@ -79,11 +79,24 @@ def regenerate_all_occupancy(run_id: int):
         hull_gdf = gpd.GeoDataFrame(geometry=[hull], crs=UTM_CRS).to_crs(WGS84_CRS)
         hull_geojson = json.dumps(mapping(hull_gdf.geometry[0]))
 
+        # Distinct stations this tiger has actually been captured at -- stored
+        # so consumers (dashboard, exports) don't need to re-join sightings
+        # every time. Previously this column existed in the schema but was
+        # always written as an empty string.
+        station_rows = conn.execute(
+            """SELECT DISTINCT i.station_id FROM sightings s
+               JOIN images i ON s.image_id = i.image_id
+               WHERE s.tiger_id = ? AND i.station_id IS NOT NULL
+               ORDER BY i.station_id""",
+            (tiger_id,),
+        ).fetchall()
+        station_list = ",".join(row[0] for row in station_rows)
+
         conn.execute(
             """INSERT INTO occupancy_snapshots
                (tiger_id, run_id, centroid_lat, centroid_lon, area_sq_km, home_range_geojson, station_list)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (tiger_id, run_id, centroid_lat, centroid_lon, area_sq_km, hull_geojson, ""),
+            (tiger_id, run_id, centroid_lat, centroid_lon, area_sq_km, hull_geojson, station_list),
         )
 
         results.append({

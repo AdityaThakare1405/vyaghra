@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime
 import exifread
 
-VALID_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+VALID_EXTENSIONS = {".jpg", ".jpeg", ".png", ".jfif"}
 
 
 def find_images(folder: Path):

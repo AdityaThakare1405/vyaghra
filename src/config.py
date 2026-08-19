@@ -25,9 +25,19 @@ MATCH_AUTO_THRESHOLD = 0.75
 MATCH_REVIEW_LOWER = 0.45
 
 # ── Occupancy / alerting thresholds ──────────────────
+# Brief specifies a 15-20 sq km RANGE for core-zone alerts: below 15 -> no
+# alert, 15-20 -> medium confidence, above 20 -> high confidence.
 CORE_ZONE_SHIFT_THRESHOLD_SQKM = 15
+CORE_ZONE_SHIFT_THRESHOLD_SQKM_HIGH = 20
+# Buffer zone uses straight-line centroid distance instead of area, since
+# near village-adjacent stations precise distance matters more than area.
 BUFFER_ZONE_SHIFT_THRESHOLD_KM = 5
 ABSENCE_MULTIPLIER = 3
+
+# Width (km) of the buffer ring drawn/generated around the reserve boundary.
+# Used only when the user does not hand-draw an explicit buffer polygon in
+# scripts/draw_map.py (see scripts/import_drawn_shapes.py).
+RESERVE_BUFFER_WIDTH_KM = 5
 
 # ── Misc ───────────────────────────────────────────────
 RANDOM_SEED = 42

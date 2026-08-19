@@ -52,14 +52,22 @@ def is_valid_point(lat, lon):
     p = Point(lon, lat)
     return RESERVE_POLYGON.contains(p) and not LAKE_POLYGON.contains(p)
 
-
 TIGER_PROFILES = {
-    "271": {"name": "Virat",   "start": (21.790, 79.320), "n_steps": 32, "step_mean_km": 0.35, "turn_std_deg": 25, "seed": 11},
-    "201": {"name": "Bheem",   "start": (21.760, 79.375), "n_steps": 30, "step_mean_km": 0.30, "turn_std_deg": 45, "seed": 22},
-    "259": {"name": "Yuvraj",  "start": (21.695, 79.330), "n_steps": 28, "step_mean_km": 0.38, "turn_std_deg": 15, "seed": 33},
-    "273": {"name": "Bajirao", "start": (21.645, 79.350), "n_steps": 34, "step_mean_km": 0.28, "turn_std_deg": 55, "seed": 44},
-}
+    # West of the lake (lon < 79.265, full lat range available)
+    "271": {"name": "Virat",      "start": (21.680, 79.220), "n_steps": 42, "step_mean_km": 0.35, "turn_std_deg": 25, "seed": 11},
+    "201": {"name": "Bheem",      "start": (21.700, 79.240), "n_steps": 45, "step_mean_km": 0.35, "turn_std_deg": 45, "seed": 22},
+    "259": {"name": "Yuvraj",     "start": (21.660, 79.230), "n_steps": 40, "step_mean_km": 0.35, "turn_std_deg": 15, "seed": 33},
 
+    # East of the lake (lon > 79.315, full lat range available)
+    "273": {"name": "Bajirao",    "start": (21.680, 79.340), "n_steps": 42, "step_mean_km": 0.35, "turn_std_deg": 55, "seed": 44},
+    "250": {"name": "Machli",     "start": (21.700, 79.350), "n_steps": 44, "step_mean_km": 0.35, "turn_std_deg": 30, "seed": 55},
+    "256": {"name": "Ustad",      "start": (21.660, 79.335), "n_steps": 40, "step_mean_km": 0.35, "turn_std_deg": 40, "seed": 66},
+
+    # North of the lake (lat > 21.735, lake doesn't reach this far up at any longitude)
+    "171": {"name": "Jai",        "start": (21.760, 79.240), "n_steps": 40, "step_mean_km": 0.35, "turn_std_deg": 20, "seed": 77},
+    "247": {"name": "Sultan",     "start": (21.760, 79.300), "n_steps": 40, "step_mean_km": 0.35, "turn_std_deg": 50, "seed": 88},
+    "238": {"name": "Collarwali", "start": (21.770, 79.340), "n_steps": 40, "step_mean_km": 0.35, "turn_std_deg": 35, "seed": 99},
+}
 NEAREST_STATION = "ST-012"
 
 

@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_980b21371020f4ae1b41eeb39a9ccc57 {
+                #map_8ed8899bc7c1cea793c65f09ff582ab7 {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -56,7 +56,7 @@
 <body>
     
     
-            <div class="folium-map" id="map_980b21371020f4ae1b41eeb39a9ccc57" ></div>
+            <div class="folium-map" id="map_8ed8899bc7c1cea793c65f09ff582ab7" ></div>
         
     
             
@@ -84,8 +84,8 @@
 <script>
     
     
-            var map_980b21371020f4ae1b41eeb39a9ccc57 = L.map(
-                "map_980b21371020f4ae1b41eeb39a9ccc57",
+            var map_8ed8899bc7c1cea793c65f09ff582ab7 = L.map(
+                "map_8ed8899bc7c1cea793c65f09ff582ab7",
                 {
                     center: [21.7, 79.3],
                     crs: L.CRS.EPSG3857,
@@ -102,7 +102,7 @@
 
         
     
-            var tile_layer_232c041142cf8f808746549f7c40342c = L.tileLayer(
+            var tile_layer_65fe7bfcd91b220252e99f0cb4159b72 = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
@@ -119,7 +119,7 @@
             );
         
     
-            tile_layer_232c041142cf8f808746549f7c40342c.addTo(map_980b21371020f4ae1b41eeb39a9ccc57);
+            tile_layer_65fe7bfcd91b220252e99f0cb4159b72.addTo(map_8ed8899bc7c1cea793c65f09ff582ab7);
         
     
             var options = {
@@ -128,16 +128,16 @@
               edit: {"edit": true},
             }
                 // FeatureGroup is to store editable layers.
-                var drawnItems_draw_control_1b63c5be9241de61a31120b6831c3cff =
+                var drawnItems_draw_control_9d451f98622693063c4376a7cde9c3fa =
                     new L.featureGroup().addTo(
-                        map_980b21371020f4ae1b41eeb39a9ccc57
+                        map_8ed8899bc7c1cea793c65f09ff582ab7
                     );
 
-            options.edit.featureGroup = drawnItems_draw_control_1b63c5be9241de61a31120b6831c3cff;
-            var draw_control_1b63c5be9241de61a31120b6831c3cff = new L.Control.Draw(
+            options.edit.featureGroup = drawnItems_draw_control_9d451f98622693063c4376a7cde9c3fa;
+            var draw_control_9d451f98622693063c4376a7cde9c3fa = new L.Control.Draw(
                 options
-            ).addTo( map_980b21371020f4ae1b41eeb39a9ccc57 );
-            map_980b21371020f4ae1b41eeb39a9ccc57.on(L.Draw.Event.CREATED, function(e) {
+            ).addTo( map_8ed8899bc7c1cea793c65f09ff582ab7 );
+            map_8ed8899bc7c1cea793c65f09ff582ab7.on(L.Draw.Event.CREATED, function(e) {
                 var layer = e.layer,
                     type = e.layerType;
                 var coords = JSON.stringify(layer.toGeoJSON());
@@ -145,15 +145,15 @@
                     alert(coords);
                     console.log(coords);
                 });
-                drawnItems_draw_control_1b63c5be9241de61a31120b6831c3cff.addLayer(layer);
+                drawnItems_draw_control_9d451f98622693063c4376a7cde9c3fa.addLayer(layer);
             });
-            map_980b21371020f4ae1b41eeb39a9ccc57.on('draw:created', function(e) {
-                drawnItems_draw_control_1b63c5be9241de61a31120b6831c3cff.addLayer(e.layer);
+            map_8ed8899bc7c1cea793c65f09ff582ab7.on('draw:created', function(e) {
+                drawnItems_draw_control_9d451f98622693063c4376a7cde9c3fa.addLayer(e.layer);
             });
 
             
             document.getElementById('export').onclick = function(e) {
-                var data = drawnItems_draw_control_1b63c5be9241de61a31120b6831c3cff.toGeoJSON();
+                var data = drawnItems_draw_control_9d451f98622693063c4376a7cde9c3fa.toGeoJSON();
                 var convertedData = 'text/json;charset=utf-8,'
                     + encodeURIComponent(JSON.stringify(data));
                 document.getElementById('export').setAttribute(

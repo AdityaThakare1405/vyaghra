@@ -1,0 +1,38 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Pench Tiger Reserve buffer zone"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              79.167507,
+              21.636446
+            ],
+            [
+              79.167507,
+              21.74837
+            ],
+            [
+              79.361865,
+              21.74837
+            ],
+            [
+              79.361865,
+              21.636446
+            ],
+            [
+              79.167507,
+              21.636446
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

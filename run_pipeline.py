@@ -20,7 +20,9 @@ from src.ingestion.scanner import find_images, extract_metadata
 from src.classification.blank_detector import classify_image
 from src.identification.detector import detect_and_crop
 from src.identification.matcher import match_or_enroll
-from src.config import OUTPUTS_DIR, QUARANTINE_DIR
+from src.config import OUTPUTS_DIR, QUARANTINE_DIR, BLANK_CONFIDENCE_THRESHOLD
+from src.occupancy.home_range import regenerate_all_occupancy
+from src.alerts.rules import run_alert_checks
 
 
 def _assign_random_station(conn):
@@ -28,7 +30,7 @@ def _assign_random_station(conn):
     return random.choice(stations)
 
 
-def main(input_folder: str):
+def main(input_folder: str, triage_only: bool = False):
     start_time = time.time()
     conn = get_connection()
 
@@ -37,12 +39,14 @@ def main(input_folder: str):
     run_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
     images = find_images(Path(input_folder))
-    print(f"Run #{run_id}: found {len(images)} images in {input_folder}\n")
+    mode_label = "TRIAGE-ONLY (blank/subject/human classification, no ID/occupancy/alerts)" if triage_only else "FULL"
+    print(f"Run #{run_id} [{mode_label}]: found {len(images)} images in {input_folder}\n")
 
     quarantined_count = 0
     space_freed = 0
     subject_count = 0
     human_count = 0
+    low_conf_blank_kept = 0  # blanks the model wasn't confident about -> NOT auto-quarantined
 
     for img_path in images:
         meta = extract_metadata(img_path)
@@ -72,16 +76,37 @@ def main(input_folder: str):
         image_id = cursor.lastrowid
 
         if result["label"] == "blank":
-            file_size = img_path.stat().st_size
-            dest = QUARANTINE_DIR / img_path.name
-            shutil.copy(str(img_path), str(dest))
-            conn.execute("UPDATE images SET quarantined = 1 WHERE image_id = ?", (image_id,))
-            conn.commit()
-            quarantined_count += 1
-            space_freed += file_size
-            print(f"  [BLANK -> quarantined] {img_path.name}")
+            # Brief requires the staged-delete step to be gated by a confidence
+            # threshold (BLANK_CONFIDENCE_THRESHOLD), not applied to every
+            # "blank" verdict regardless of certainty. A frame the model is
+            # NOT confident about is left in the working set (classification
+            # still recorded as 'blank' for visibility) instead of being
+            # auto-quarantined, so an uncertain call never silently disappears.
+            if result["confidence"] >= BLANK_CONFIDENCE_THRESHOLD:
+                file_size = img_path.stat().st_size
+                dest = QUARANTINE_DIR / img_path.name
+                shutil.copy(str(img_path), str(dest))
+                conn.execute("UPDATE images SET quarantined = 1 WHERE image_id = ?", (image_id,))
+                conn.commit()
+                quarantined_count += 1
+                space_freed += file_size
+                print(f"  [BLANK conf={result['confidence']:.2f} -> quarantined] {img_path.name}")
+            else:
+                low_conf_blank_kept += 1
+                print(f"  [BLANK conf={result['confidence']:.2f} < threshold -> kept, not quarantined] {img_path.name}")
 
         elif result["label"] == "subject":
+            if triage_only:
+                # Triage-only mode: prove blank-vs-subject classification works
+                # at scale without touching identification. We deliberately do
+                # NOT crop, embed, match, or enroll here -- doing so would
+                # create new tiger_id rows and pull unrelated ATRW individuals
+                # into the tigers table, which then dilutes the occupancy
+                # picture for the 9 tigers this run is not meant to touch.
+                subject_count += 1
+                print(f"  [SUBJECT conf={result['confidence']:.2f} -> kept, no ID (triage-only)] {img_path.name}")
+                continue
+
             crop_path, usable = detect_and_crop(str(img_path))
             crop_result = classify_image(crop_path, skip_person_check=True) if crop_path else result
 
@@ -116,15 +141,38 @@ def main(input_folder: str):
     )
     conn.commit()
 
+    # Occupancy + alerts are regenerated for ALL tigers in the DB, and
+    # identification/matching is what creates new tiger_id rows in the first
+    # place. Skip both entirely in triage-only mode so a big proof-of-blank-
+    # detection batch can never add tigers or touch the existing occupancy
+    # snapshots -- the run stays purely a classification/quarantine exercise.
+    if triage_only:
+        occupancy_results = []
+        alerts_raised = []
+        print("\n--- OCCUPANCY / ALERTS: skipped (--triage-only) ---")
+    else:
+        print("\n--- OCCUPANCY (regenerating for all known tigers) ---")
+        occupancy_results = regenerate_all_occupancy(run_id=run_id)
+        for r in occupancy_results:
+            print(f"  {r}")
+
+        print("\n--- ALERTS (diffing against previous run) ---")
+        alerts_raised = run_alert_checks(run_id=run_id)
+        print(f"  {len(alerts_raised)} alert(s) raised")
+
     report = {
         "run_id": run_id,
+        "mode": "triage_only" if triage_only else "full",
         "images_processed": len(images),
         "images_quarantined": quarantined_count,
+        "low_confidence_blanks_kept_for_review": low_conf_blank_kept,
         "subjects_identified": subject_count,
         "humans_flagged": human_count,
         "space_freed_mb": round(space_freed / (1024 * 1024), 2),
         "time_taken_sec": round(elapsed, 1),
         "throughput_img_per_min": round(throughput, 1),
+        "tigers_with_occupancy": len(occupancy_results),
+        "alerts_raised": len(alerts_raised),
     }
     with open(OUTPUTS_DIR / f"run_report_{run_id}.json", "w") as f:
         json.dump(report, f, indent=2)
@@ -137,5 +185,12 @@ def main(input_folder: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True)
+    parser.add_argument(
+        "--triage-only", action="store_true",
+        help="Run ingestion + blank/subject/human classification + quarantine only. "
+             "Skips identification, matching, tiger enrollment, occupancy, and alerts. "
+             "Use this for large proof-of-scale batches so they never touch the "
+             "existing tiger catalogue or occupancy snapshots.",
+    )
     args = parser.parse_args()
-    main(args.input)
+    main(args.input, triage_only=args.triage_only)
