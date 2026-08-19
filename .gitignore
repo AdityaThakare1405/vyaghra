@@ -223,3 +223,4 @@ data/quarantine/
 outputs/
 *.db
 .env
+data/samples.zip
